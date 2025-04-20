@@ -103,7 +103,7 @@ def forward_gpu(ps, ref_s, speed):
 @decorator_log_generation
 @decorator_extension_inner
 @log_function_time
-def tts(text, voice="af_heart", speed=1, use_gpu=True, **kwargs):
+def tts(text, voice="af_heart", speed=1, use_gpu=True, model_name="hexgrad/Kokoro-82M", **kwargs):
     """Main TTS function with all the decorators for the webui integration"""
     CUDA_AVAILABLE = torch.cuda.is_available()
     use_gpu = use_gpu and CUDA_AVAILABLE
@@ -111,7 +111,7 @@ def tts(text, voice="af_heart", speed=1, use_gpu=True, **kwargs):
     pipeline = get_pipeline(voice[0])
     pack = get_voice(voice)
 
-    model = get_model(model_name="hexgrad/Kokoro-82M", use_gpu=use_gpu)
+    model = get_model(model_name=model_name, use_gpu=use_gpu)
     for _, ps, _ in pipeline(text, voice, speed):
         ref_s = pack[len(ps) - 1]
         try:
@@ -213,6 +213,16 @@ def ui():
     """Create the Gradio UI for the Kokoro extension"""
     CUDA_AVAILABLE = torch.cuda.is_available()
 
+    gr.Markdown("""
+    # Kokoro TTS
+    ### 🎙️ Text-to-speech with Kokoro
+                
+    Requires espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
+                
+    [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
+    """
+    )
+
     with gr.Row():
         with gr.Column():
             text = gr.Textbox(
@@ -242,6 +252,13 @@ def ui():
                 value=1,
                 step=0.1,
                 label="Speed"
+            )
+
+            model_name = gr.Dropdown(
+                [("Kokoro-82M", "hexgrad/Kokoro-82M"), ("Kokoro-82M-v1.1-zh", "hexgrad/Kokoro-82M-v1.1-zh")],
+                value="hexgrad/Kokoro-82M",
+                label="Model",
+                info="Select the Kokoro model to use"
             )
 
             generate_btn = gr.Button("Generate", variant="primary")
@@ -285,6 +302,7 @@ def ui():
                 voice: "voice",
                 speed: "speed",
                 use_gpu: "use_gpu",
+                model_name: "model_name",
                 seed: "seed",
             },
             outputs={
