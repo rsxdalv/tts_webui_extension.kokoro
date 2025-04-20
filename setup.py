@@ -7,7 +7,11 @@ setup(
     install_requires=[
         "kokoro",
         "torch",
-        "gradio>=3.50.2",
+        "gradio",
+        "misaki[en]",
+        "misaki[ja]",
+        "misaki[ko]",
+        "misaki[zh]",
     ],
     package_data={
         "extension_kokoro": ["samples/*.txt", "samples/*.md"],

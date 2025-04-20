@@ -3,8 +3,7 @@ import torch
 import random
 import os
 
-# from extension_kokoro.extension_kokoro.CHOICES import CHOICES
-from .CHOICES import CHOICES
+from extension_kokoro.extension_kokoro.CHOICES import CHOICES
 from tts_webui.decorators.decorator_add_base_filename import decorator_add_base_filename
 from tts_webui.decorators.decorator_add_date import decorator_add_date
 from tts_webui.decorators.decorator_add_model_type import decorator_add_model_type
@@ -187,13 +186,9 @@ def ui():
     # Kokoro TTS
     ### 🎙️ Text-to-speech with Kokoro
                 
-    Requires espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
+    For certain tasks, might require espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
                 
     [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
-                
-    🇯🇵 Voices require fugashi: `pip install fugashi`
-                
-    🇨🇳 Voices require misaki: `pip install misaki`
     """
     )
 
