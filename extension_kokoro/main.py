@@ -3,7 +3,7 @@ import torch
 import random
 import os
 
-from extension_kokoro.extension_kokoro.CHOICES import CHOICES
+from extension_kokoro.CHOICES import CHOICES
 from tts_webui.decorators.decorator_add_base_filename import decorator_add_base_filename
 from tts_webui.decorators.decorator_add_date import decorator_add_date
 from tts_webui.decorators.decorator_add_model_type import decorator_add_model_type
