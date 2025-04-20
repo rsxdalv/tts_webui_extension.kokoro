@@ -3,6 +3,8 @@ import torch
 import random
 import os
 
+# from extension_kokoro.extension_kokoro.CHOICES import CHOICES
+from .CHOICES import CHOICES
 from tts_webui.decorators.decorator_add_base_filename import decorator_add_base_filename
 from tts_webui.decorators.decorator_add_date import decorator_add_date
 from tts_webui.decorators.decorator_add_model_type import decorator_add_model_type
@@ -166,38 +168,6 @@ def get_frankenstein():
 
 
 # Voice choices
-CHOICES = {
-    "🇺🇸 🚺 Heart ❤️": "af_heart",
-    "🇺🇸 🚺 Bella 🔥": "af_bella",
-    "🇺🇸 🚺 Nicole 🎧": "af_nicole",
-    "🇺🇸 🚺 Aoede": "af_aoede",
-    "🇺🇸 🚺 Kore": "af_kore",
-    "🇺🇸 🚺 Sarah": "af_sarah",
-    "🇺🇸 🚺 Nova": "af_nova",
-    "🇺🇸 🚺 Sky": "af_sky",
-    "🇺🇸 🚺 Alloy": "af_alloy",
-    "🇺🇸 🚺 Jessica": "af_jessica",
-    "🇺🇸 🚺 River": "af_river",
-    "🇺🇸 🚹 Michael": "am_michael",
-    "🇺🇸 🚹 Fenrir": "am_fenrir",
-    "🇺🇸 🚹 Puck": "am_puck",
-    "🇺🇸 🚹 Echo": "am_echo",
-    "🇺🇸 🚹 Eric": "am_eric",
-    "🇺🇸 🚹 Liam": "am_liam",
-    "🇺🇸 🚹 Onyx": "am_onyx",
-    "🇺🇸 🚹 Santa": "am_santa",
-    "🇺🇸 🚹 Adam": "am_adam",
-    "🇬🇧 🚺 Emma": "bf_emma",
-    "🇬🇧 🚺 Isabella": "bf_isabella",
-    "🇬🇧 🚺 Alice": "bf_alice",
-    "🇬🇧 🚺 Lily": "bf_lily",
-    "🇬🇧 🚹 George": "bm_george",
-    "🇬🇧 🚹 Fable": "bm_fable",
-    "🇬🇧 🚹 Lewis": "bm_lewis",
-    "🇬🇧 🚹 Daniel": "bm_daniel",
-}
-
-
 TOKEN_NOTE = """
 💡 Customize pronunciation with Markdown link syntax and /slashes/ like `[Kokoro](/kˈOkəɹO/)`
 
@@ -220,6 +190,10 @@ def ui():
     Requires espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
                 
     [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
+                
+    🇯🇵 Voices require fugashi: `pip install fugashi`
+                
+    🇨🇳 Voices require misaki: `pip install misaki`
     """
     )
 
