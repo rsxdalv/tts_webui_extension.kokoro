@@ -1,18 +1,11 @@
+import functools
 import gradio as gr
 import torch
 import random
 import os
 
-from extension_kokoro.CHOICES import CHOICES
-from tts_webui.decorators.decorator_add_base_filename import decorator_add_base_filename
-from tts_webui.decorators.decorator_add_date import decorator_add_date
-from tts_webui.decorators.decorator_add_model_type import decorator_add_model_type
-from tts_webui.decorators.decorator_apply_torch_seed import decorator_apply_torch_seed
-from tts_webui.decorators.decorator_log_generation import decorator_log_generation
-from tts_webui.decorators.decorator_save_metadata import decorator_save_metadata
-from tts_webui.decorators.decorator_save_wav import decorator_save_wav
-from tts_webui.decorators.gradio_dict_decorator import dictionarize
-from tts_webui.decorators.log_function_time import log_function_time
+from .CHOICES import CHOICES
+from tts_webui.decorators import *
 from tts_webui.extensions_loader.decorator_extensions import (
     decorator_extension_inner,
     decorator_extension_outer,
@@ -27,7 +20,7 @@ def extension__tts_generation_webui():
     return {
         "package_name": "extension_kokoro",
         "name": "Kokoro",
-        "version": "0.0.1",
+        "version": "0.0.2",
         "requirements": "git+https://github.com/rsxdalv/extension_kokoro@main",
         "description": "Kokoro: A small, fast, and high-quality TTS model",
         "extension_type": "interface",
@@ -44,6 +37,7 @@ def extension__tts_generation_webui():
 # Dictionary to cache loaded models
 _models = {}
 
+
 @manage_model_state("kokoro")
 def get_model(model_name="hexgrad/Kokoro-82M", use_gpu=False):
     """Lazily load the model only when needed"""
@@ -51,9 +45,13 @@ def get_model(model_name="hexgrad/Kokoro-82M", use_gpu=False):
 
     gpu_key = bool(use_gpu and torch.cuda.is_available())
     if gpu_key not in _models:
-        _models[gpu_key] = KModel(
-            repo_id=model_name,
-        ).to("cuda" if gpu_key else "cpu").eval()
+        _models[gpu_key] = (
+            KModel(
+                repo_id=model_name,
+            )
+            .to("cuda" if gpu_key else "cpu")
+            .eval()
+        )
     return _models[gpu_key]
 
 
@@ -61,10 +59,8 @@ def get_model(model_name="hexgrad/Kokoro-82M", use_gpu=False):
 _pipelines = {}
 
 # Custom lexicon entries for each language code
-_lexicon_entries = {
-    "a": {"kokoro": "kˈOkəɹO"},
-    "b": {"kokoro": "kˈQkəɹQ"}
-}
+_lexicon_entries = {"a": {"kokoro": "kˈOkəɹO"}, "b": {"kokoro": "kˈQkəɹQ"}}
+
 
 def get_pipeline(lang_code):
     """Lazily create a pipeline only when needed"""
@@ -82,6 +78,7 @@ def get_pipeline(lang_code):
 # Dictionary to cache loaded voices
 _loaded_voices = {}
 
+
 def get_voice(voice_name):
     """Lazily load a voice only when needed"""
     if voice_name not in _loaded_voices:
@@ -94,18 +91,14 @@ def forward_gpu(ps, ref_s, speed):
     return get_model(use_gpu=True)(ps, ref_s, speed)
 
 
-@decorator_extension_outer
-@decorator_apply_torch_seed
-@decorator_save_metadata
-@decorator_save_wav
-@decorator_add_model_type("kokoro")
-@decorator_add_base_filename
-@decorator_add_date
-@decorator_log_generation
-@decorator_extension_inner
-@log_function_time
-def tts(text, voice="af_heart", speed=1, use_gpu=True, model_name="hexgrad/Kokoro-82M", **kwargs):
-    """Main TTS function with all the decorators for the webui integration"""
+def tts(
+    text,
+    voice="af_heart",
+    speed=1,
+    use_gpu=True,
+    model_name="hexgrad/Kokoro-82M",
+    **kwargs,
+):
     CUDA_AVAILABLE = torch.cuda.is_available()
     use_gpu = use_gpu and CUDA_AVAILABLE
 
@@ -116,10 +109,7 @@ def tts(text, voice="af_heart", speed=1, use_gpu=True, model_name="hexgrad/Kokor
     for _, ps, _ in pipeline(text, voice, speed):
         ref_s = pack[len(ps) - 1]
         try:
-            if use_gpu:
-                audio = model(ps, ref_s, speed)
-            else:
-                audio = model(ps, ref_s, speed)
+            audio = model(ps, ref_s, speed)
         except Exception as e:
             if use_gpu:
                 print(f"Warning: {str(e)}")
@@ -139,6 +129,21 @@ def tts(text, voice="af_heart", speed=1, use_gpu=True, model_name="hexgrad/Kokor
     }
 
 
+@functools.wraps(tts)
+@decorator_extension_outer
+@decorator_apply_torch_seed
+@decorator_save_metadata
+@decorator_save_wav
+@decorator_add_model_type("kokoro")
+@decorator_add_base_filename
+@decorator_add_date
+@decorator_log_generation
+@decorator_extension_inner
+@log_function_time
+def tts_decorated(*args, **kwargs):
+    return tts(*args, **kwargs)
+
+
 def tokenize_first(text, voice="af_heart"):
     """Get tokens for the text using the specified voice"""
     pipeline = get_pipeline(voice[0])
@@ -156,13 +161,17 @@ def get_random_quote():
 
 def get_gatsby():
     """Get text from the Gatsby file"""
-    with open(os.path.join(os.path.dirname(__file__), "samples", "gatsby5k.md"), "r") as r:
+    with open(
+        os.path.join(os.path.dirname(__file__), "samples", "gatsby5k.md"), "r"
+    ) as r:
         return r.read().strip()
 
 
 def get_frankenstein():
     """Get text from the Frankenstein file"""
-    with open(os.path.join(os.path.dirname(__file__), "samples", "frankenstein5k.md"), "r") as r:
+    with open(
+        os.path.join(os.path.dirname(__file__), "samples", "frankenstein5k.md"), "r"
+    ) as r:
         return r.read().strip()
 
 
@@ -182,10 +191,14 @@ def ui():
     """Create the Gradio UI for the Kokoro extension"""
     CUDA_AVAILABLE = torch.cuda.is_available()
 
-    gr.Markdown("""
+    gr.Markdown(
+        """
     # Kokoro TTS
+    ### 🎙️ Text-to-speech with Kokoro
                 
-    For certain tasks, might require espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions: [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
+    For certain tasks, might require espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
+                
+    [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
     """
     )
 
@@ -194,7 +207,7 @@ def ui():
             text = gr.Textbox(
                 lines=3,
                 label="Text to generate",
-                info="Arbitrarily many characters supported"
+                info="Arbitrarily many characters supported",
             )
 
             with gr.Row():
@@ -202,29 +215,26 @@ def ui():
                     list(CHOICES.items()),
                     value="af_heart",
                     label="Voice",
-                    info="Quality and availability vary by language"
+                    info="Quality and availability vary by language",
                 )
                 use_gpu = gr.Dropdown(
                     [("ZeroGPU 🚀", True), ("CPU 🐌", False)],
                     value=CUDA_AVAILABLE,
                     label="Hardware",
                     info="GPU is usually faster, but has a usage quota",
-                    interactive=CUDA_AVAILABLE
+                    interactive=CUDA_AVAILABLE,
                 )
 
-            speed = gr.Slider(
-                minimum=0.5,
-                maximum=2,
-                value=1,
-                step=0.1,
-                label="Speed"
-            )
+            speed = gr.Slider(minimum=0.5, maximum=2, value=1, step=0.1, label="Speed")
 
             model_name = gr.Dropdown(
-                [("Kokoro-82M", "hexgrad/Kokoro-82M"), ("Kokoro-82M-v1.1-zh", "hexgrad/Kokoro-82M-v1.1-zh")],
+                [
+                    ("Kokoro-82M", "hexgrad/Kokoro-82M"),
+                    ("Kokoro-82M-v1.1-zh", "hexgrad/Kokoro-82M-v1.1-zh"),
+                ],
                 value="hexgrad/Kokoro-82M",
                 label="Model",
-                info="Select the Kokoro model to use"
+                info="Select the Kokoro model to use",
             )
 
             generate_btn = gr.Button("Generate", variant="primary")
@@ -246,7 +256,7 @@ def ui():
                 tokens_out = gr.Textbox(
                     interactive=False,
                     show_label=False,
-                    info="Tokens used to generate the audio, up to 510 context length."
+                    info="Tokens used to generate the audio, up to 510 context length.",
                 )
                 tokenize_btn = gr.Button("Tokenize", variant="secondary")
                 gr.Markdown(TOKEN_NOTE)
@@ -262,7 +272,7 @@ def ui():
         **randomize_seed_callback,
     ).then(
         **dictionarize(
-            fn=tts,
+            fn=tts_decorated,
             inputs={
                 text: "text",
                 voice: "voice",
