@@ -87,10 +87,6 @@ def get_voice(voice_name):
     return _loaded_voices[voice_name]
 
 
-def forward_gpu(ps, ref_s, speed):
-    return get_model(use_gpu=True)(ps, ref_s, speed)
-
-
 def tts(
     text,
     voice="af_heart",
