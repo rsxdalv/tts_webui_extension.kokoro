@@ -25,7 +25,7 @@ CHOICES = {
     "🇬🇧 🚺 Lily": "bf_lily",
     "🇬🇧 🚹 George": "bm_george",
     "🇬🇧 🚹 Fable": "bm_fable",
-    "🇬🇧 🚹 Lewis": "bm_lewis",
+    # "🇬🇧 🚹 Lewis": "bm_lewis", # Suspicious data.
     "🇬🇧 🚹 Daniel": "bm_daniel",
     "🇪🇸 🚺 Dora": "ef_dora",
     "🇪🇸 🚹 Alex": "em_alex",

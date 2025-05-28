@@ -20,7 +20,6 @@ def extension__tts_generation_webui():
     return {
         "package_name": "extension_kokoro",
         "name": "Kokoro",
-        "version": "0.0.2",
         "requirements": "git+https://github.com/rsxdalv/extension_kokoro@main",
         "description": "Kokoro: A small, fast, and high-quality TTS model",
         "extension_type": "interface",
@@ -61,6 +60,37 @@ _pipelines = {}
 # Custom lexicon entries for each language code
 _lexicon_entries = {"a": {"kokoro": "kˈOkəɹO"}, "b": {"kokoro": "kˈQkəɹQ"}}
 
+
+ALIASES = {
+    'en-us': 'a',
+    'en-gb': 'b',
+    'es': 'e',
+    'fr-fr': 'f',
+    'hi': 'h',
+    'it': 'i',
+    'pt-br': 'p',
+    'ja': 'j',
+    'zh': 'z',
+}
+
+LANG_CODES = dict(
+    # pip install misaki[en]
+    a='American English',
+    b='British English',
+
+    # espeak-ng
+    e='es',
+    f='fr-fr',
+    h='hi',
+    i='it',
+    p='pt-br',
+
+    # pip install misaki[ja]
+    j='Japanese',
+
+    # pip install misaki[zh]
+    z='Mandarin Chinese',
+)
 
 def get_pipeline(lang_code):
     """Lazily create a pipeline only when needed"""
@@ -195,6 +225,13 @@ def ui():
     For certain tasks, might require espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
                 
     [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
+
+    ### for Japanese generation
+
+    ```python
+    pip install 'fugashi[unidic]'
+    python -m unidic download
+    ```
     """
     )
 
@@ -212,6 +249,7 @@ def ui():
                     value="af_heart",
                     label="Voice",
                     info="Quality and availability vary by language",
+                    allow_custom_value=True,
                 )
                 use_gpu = gr.Dropdown(
                     [("ZeroGPU 🚀", True), ("CPU 🐌", False)],
