@@ -1,6 +1,6 @@
 # Extension adapter for Kokoro TTS
 
-This is an extension adapter for the Kokoro TTS model. It allows you to use the Kokoro TTS model in the TTS Generation WebUI.
+This is an extension adapter for the Kokoro TTS model. It allows you to use the Kokoro TTS model in the TTS WebUI.
 
 Originally from https://github.com/hexgrad/kokoro/tree/main/demo license:
 
