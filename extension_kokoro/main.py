@@ -1,8 +1,8 @@
 import functools
+from typing import TYPE_CHECKING
 import gradio as gr
 import torch
-import random
-import os
+import numpy as np
 
 from .CHOICES import CHOICES
 from tts_webui.decorators import *
@@ -13,6 +13,9 @@ from tts_webui.extensions_loader.decorator_extensions import (
 from tts_webui.utils.list_dir_models import unload_model_button
 from tts_webui.utils.manage_model_state import manage_model_state
 from tts_webui.utils.randomize_seed import randomize_seed_ui
+
+if TYPE_CHECKING:
+    from kokoro import KModel, KPipeline
 
 
 def extension__tts_generation_webui():
@@ -38,7 +41,7 @@ _models = {}
 
 
 @manage_model_state("kokoro")
-def get_model(model_name="hexgrad/Kokoro-82M", use_gpu=False):
+def get_model(model_name="hexgrad/Kokoro-82M", use_gpu=False) -> "KModel":
     """Lazily load the model only when needed"""
     from kokoro import KModel
 
@@ -62,37 +65,35 @@ _lexicon_entries = {"a": {"kokoro": "kˈOkəɹO"}, "b": {"kokoro": "kˈQkəɹQ"}
 
 
 ALIASES = {
-    'en-us': 'a',
-    'en-gb': 'b',
-    'es': 'e',
-    'fr-fr': 'f',
-    'hi': 'h',
-    'it': 'i',
-    'pt-br': 'p',
-    'ja': 'j',
-    'zh': 'z',
+    "en-us": "a",
+    "en-gb": "b",
+    "es": "e",
+    "fr-fr": "f",
+    "hi": "h",
+    "it": "i",
+    "pt-br": "p",
+    "ja": "j",
+    "zh": "z",
 }
 
 LANG_CODES = dict(
     # pip install misaki[en]
-    a='American English',
-    b='British English',
-
+    a="American English",
+    b="British English",
     # espeak-ng
-    e='es',
-    f='fr-fr',
-    h='hi',
-    i='it',
-    p='pt-br',
-
+    e="es",
+    f="fr-fr",
+    h="hi",
+    i="it",
+    p="pt-br",
     # pip install misaki[ja]
-    j='Japanese',
-
+    j="Japanese",
     # pip install misaki[zh]
-    z='Mandarin Chinese',
+    z="Mandarin Chinese",
 )
 
-def get_pipeline(lang_code):
+
+def get_pipeline(lang_code) -> "KPipeline":
     """Lazily create a pipeline only when needed"""
     from kokoro import KPipeline
 
@@ -109,12 +110,61 @@ def get_pipeline(lang_code):
 _loaded_voices = {}
 
 
-def get_voice(voice_name):
+def get_voice(voice_name) -> torch.FloatTensor:
     """Lazily load a voice only when needed"""
     if voice_name not in _loaded_voices:
         pipeline = get_pipeline(voice_name[0])
         _loaded_voices[voice_name] = pipeline.load_voice(voice_name)
+        # load_single_voice
     return _loaded_voices[voice_name]
+
+
+def get_voice_from_formula(formula: str, normalize=True) -> torch.FloatTensor:
+    """
+    Parse a voice formula string and return the combined voice tensor.
+
+    Args:
+        formula: String like "af_heart * 0.333 + af_bella * 0.333 + af_nicole * 0.333"
+
+    Raises:
+        ValueError: If voice name is invalid or formula is malformed
+    """
+    if not formula.strip():
+        raise ValueError("Formula cannot be empty")
+
+    def get_voices():
+        try:
+            for term in formula.split("+"):
+                voice_name, weight_str = term.strip().split("*", 1)
+                voice_name = voice_name.strip()
+                weight = float(weight_str.strip())
+
+                if not voice_name or voice_name[0] not in LANG_CODES:
+                    raise ValueError(f"Unknown voice: '{voice_name}'")
+
+                yield get_voice(voice_name), weight
+
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid term format: '{formula}'. Expected 'voice_name * weight'"
+            ) from e
+
+    # Collect voices and weights
+    voices_and_weights = list(get_voices())
+    voices = [v for v, w in voices_and_weights]
+    weights = torch.tensor([w for v, w in voices_and_weights], dtype=torch.float32)
+
+    # Normalize weights so they sum to 1
+    if normalize:
+        weights = weights / weights.sum()
+    voice_stack = torch.stack(voices)
+
+    # Add dimensions to weights to match voice tensor dimensions
+    for _ in range(voice_stack.dim() - 1):
+        weights = weights.unsqueeze(-1)
+
+    # Weighted average
+    return torch.sum(voice_stack * weights, dim=0)
 
 
 def tts(
@@ -123,35 +173,46 @@ def tts(
     speed=1,
     use_gpu=True,
     model_name="hexgrad/Kokoro-82M",
+    progress=gr.Progress(),
     **kwargs,
 ):
     CUDA_AVAILABLE = torch.cuda.is_available()
     use_gpu = use_gpu and CUDA_AVAILABLE
 
+    progress(0, desc="Loading voices...")
     pipeline = get_pipeline(voice[0])
-    pack = get_voice(voice)
+    # if voice is a formula
+    if "+" in voice or "*" in voice:
+        pack = get_voice_from_formula(voice)
+    else:
+        pack = get_voice(voice)
 
+    progress(0.25, desc="Loading model...")
     model = get_model(model_name=model_name, use_gpu=use_gpu)
-    for _, ps, _ in pipeline(text, voice, speed):
-        ref_s = pack[len(ps) - 1]
-        try:
-            audio = model(ps, ref_s, speed)
-        except Exception as e:
-            if use_gpu:
-                print(f"Warning: {str(e)}")
-                print("Retrying with CPU. To avoid this error, change Hardware to CPU.")
-                audio = model(ps, ref_s, speed)
-            else:
-                raise e
 
-        return {
-            "audio_out": (24000, audio.cpu().numpy()),
-            "tokens": ps,
-        }
+    def gen_chunks():
+        for graphemes, phonemes, _ in pipeline(text, voice, speed):
+            progress(0.5, desc=f"Generating audio: {graphemes[:30]}..")
+            ref_s = pack[len(phonemes) - 1]
+            print(f"Generating {graphemes}")
+            audio = model(phonemes, ref_s, speed)
+
+            yield {
+                "audio_out": (24000, audio.cpu().numpy()),
+                "tokens": phonemes,
+            }
+
+    results = list(gen_chunks())
+
+    def combine_audio_out(results):
+        return (
+            results[0]["audio_out"][0],
+            np.concatenate([r["audio_out"][1] for r in results]),
+        )
 
     return {
-        "audio_out": None,
-        "tokens": "",
+        "audio_out": combine_audio_out(results),
+        "tokens": " ".join([r["tokens"] for r in results]),
     }
 
 
@@ -178,30 +239,6 @@ def tokenize_first(text, voice="af_heart"):
     return ""
 
 
-def get_random_quote():
-    """Get a random quote from the en.txt file"""
-    with open(os.path.join(os.path.dirname(__file__), "samples", "en.txt"), "r") as r:
-        random_quotes = [line.strip() for line in r]
-    return random.choice(random_quotes)
-
-
-def get_gatsby():
-    """Get text from the Gatsby file"""
-    with open(
-        os.path.join(os.path.dirname(__file__), "samples", "gatsby5k.md"), "r"
-    ) as r:
-        return r.read().strip()
-
-
-def get_frankenstein():
-    """Get text from the Frankenstein file"""
-    with open(
-        os.path.join(os.path.dirname(__file__), "samples", "frankenstein5k.md"), "r"
-    ) as r:
-        return r.read().strip()
-
-
-# Voice choices
 TOKEN_NOTE = """
 💡 Customize pronunciation with Markdown link syntax and /slashes/ like `[Kokoro](/kˈOkəɹO/)`
 
@@ -220,18 +257,11 @@ def ui():
     gr.Markdown(
         """
     # Kokoro TTS
-    ### 🎙️ Text-to-speech with Kokoro
                 
     For certain tasks, might require espeak-ng: `sudo apt-get install espeak-ng` or `brew install espeak-ng` or `pacman -S espeak-ng`, more instructions:
                 
     [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
 
-    ### for Japanese generation
-
-    ```python
-    pip install 'fugashi[unidic]'
-    python -m unidic download
-    ```
     """
     )
 
@@ -242,6 +272,7 @@ def ui():
                 label="Text to generate",
                 info="Arbitrarily many characters supported",
             )
+            generate_btn = gr.Button("Generate", variant="primary")
 
             with gr.Row():
                 voice = gr.Dropdown(
@@ -271,19 +302,13 @@ def ui():
                 info="Select the Kokoro model to use",
             )
 
-            generate_btn = gr.Button("Generate", variant="primary")
-
             with gr.Row():
-                random_btn = gr.Button("🎲 Random Quote 💬", variant="secondary")
-                gatsby_btn = gr.Button("🥂 Gatsby 📕", variant="secondary")
-                frankenstein_btn = gr.Button("💀 Frankenstein 📗", variant="secondary")
+                seed, randomize_seed_callback = randomize_seed_ui()
 
             with gr.Row():
                 unload_model_button("kokoro")
-                seed, randomize_seed_callback = randomize_seed_ui()
 
         with gr.Column():
-            # Output section
             audio_out = gr.Audio(label="Generated Audio", autoplay=True)
 
             with gr.Accordion("Output Tokens", open=True):
@@ -294,11 +319,6 @@ def ui():
                 )
                 tokenize_btn = gr.Button("Tokenize", variant="secondary")
                 gr.Markdown(TOKEN_NOTE)
-
-    # Event handlers
-    random_btn.click(fn=get_random_quote, inputs=[], outputs=[text])
-    gatsby_btn.click(fn=get_gatsby, inputs=[], outputs=[text])
-    frankenstein_btn.click(fn=get_frankenstein, inputs=[], outputs=[text])
 
     tokenize_btn.click(fn=tokenize_first, inputs=[text, voice], outputs=[tokens_out])
 
