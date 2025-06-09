@@ -5,6 +5,7 @@ import torch
 import numpy as np
 
 from .CHOICES import CHOICES
+from .download_unidic import download_ui
 from tts_webui.decorators import *
 from tts_webui.extensions_loader.decorator_extensions import (
     decorator_extension_inner,
@@ -262,6 +263,7 @@ def ui():
                 
     [Installation instructions](https://github.com/espeak-ng/espeak-ng/blob/master/docs/guide.md#installation)
 
+    For Japanese, use download
     """
     )
 
@@ -319,6 +321,8 @@ def ui():
                 )
                 tokenize_btn = gr.Button("Tokenize", variant="secondary")
                 gr.Markdown(TOKEN_NOTE)
+
+            download_ui()
 
     tokenize_btn.click(fn=tokenize_first, inputs=[text, voice], outputs=[tokens_out])
 
