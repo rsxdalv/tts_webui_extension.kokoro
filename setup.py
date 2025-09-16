@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="extension_kokoro",
+    name="tts_webui_extension.kokoro",
     version="0.3.0",
     packages=find_packages(),
     install_requires=[
@@ -18,3 +18,4 @@ setup(
     },
     include_package_data=True,
 )
+
