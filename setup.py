@@ -1,9 +1,9 @@
-from setuptools import setup, find_packages
+import setuptools
 
-setup(
+setuptools.setup(
     name="tts_webui_extension.kokoro",
-    version="0.3.0",
-    packages=find_packages(),
+    version="0.3.1",
+    packages=setuptools.find_namespace_packages(),
     install_requires=[
         "kokoro",
         "torch",
