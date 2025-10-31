@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tts_webui_extension.kokoro"
+version = "0.3.1"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "kokoro",
+    "torch",
+    "gradio",
+]
+
+[project.urls]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+# This will find all namespace packages automatically
+namespaces = true
